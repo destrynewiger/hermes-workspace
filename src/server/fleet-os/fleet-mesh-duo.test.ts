@@ -23,6 +23,16 @@ describe('oakland mesh + duo signals', () => {
     expect(meshHostByMachineId('sf-mini')?.tailscaleIp).toBe('100.106.243.19')
     expect(summarizeMeshInventory().withKnownIp).toBeGreaterThanOrEqual(2)
     expect(FLEET_MESH_HOSTS.some((host) => host.machineId === 'backup-mini' && !host.tailscaleIp)).toBe(true)
+    expect(meshHostByMachineId('backup-mini')?.lastKnownTailscaleIp).toBe('100.90.155.111')
+    expect(meshHostByMachineId('backup-mini')?.identities).toEqual(expect.arrayContaining(['katherine-byteport']))
+  })
+
+  it('probes last-known backup IP without treating it as a live Tailscale IP', async () => {
+    const { meshHostByMachineId, meshProbeTargets, summarizeMeshInventory } = await import('./fleet-mesh')
+    const backup = meshHostByMachineId('backup-mini')!
+    expect(backup.tailscaleIp).toBe('')
+    expect(meshProbeTargets(backup)).toContain('100.90.155.111')
+    expect(summarizeMeshInventory().missingIp).toContain('backup-mini')
   })
 
   it('enriches backup-mini IP from tailscale status peers', async () => {
