@@ -52,7 +52,7 @@ export const FLEET_MESH_HOSTS: FleetMeshHost[] = [
     displayName: 'Backup Byteport Mac Mini',
     role: 'failover',
     tailscaleHostname: 'backup-byteport-mini',
-    tailscaleAliases: ['backup-mini', 'byteport-backup', 'alex-backup-mini'],
+    tailscaleAliases: ['backup-mini', 'byteport-backup', 'alex-backup-mini', 'byteports-mac-mini', 'byteport-mac-mini'],
     tailscaleIp: '',
     lastKnownTailscaleIp: '100.90.155.111',
     tailnet: 'tail1b1137.ts.net',
