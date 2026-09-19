@@ -1598,15 +1598,17 @@ export function defaultFleet(): Pick<FleetSnapshot, 'machines' | 'workers' | 'id
   const ts = now()
   const grokbotIds = grokbotHarnessIdentityIds()
   const machines: MachineRecord[] = [
-    { id: 'oakland-mini', name: 'Oakland Mac Mini', online: true, lastHeartbeatAt: ts, capabilities: ['research', 'attio', 'local-inference', 'coordination', 'meeting.brief', 'calendar', 'calendar.create', 'email.send'], identities: ['alex-byteport', 'alex-gmail', 'alex-calendar'], models: ['ollama-local'], agents: ['hermes', 'codex'], load: 0, recentFailures: 0 },
+    { id: 'oakland-mini', name: 'Oakland Mac Mini', online: true, lastHeartbeatAt: ts, capabilities: ['research', 'attio', 'local-inference', 'coordination', 'meeting.brief', 'calendar', 'calendar.create', 'email.send'], identities: ['alex-byteport', 'alex-gmail', 'alex-calendar', 'john-gradient'], models: ['ollama-local'], agents: ['hermes', 'codex'], load: 0, recentFailures: 0 },
     { id: 'sf-mini', name: 'Alex SF Mac Mini', online: true, lastHeartbeatAt: ts, capabilities: ['research', 'linkedin.draft', 'browser'], identities: ['alex-byteport', 'katherine-byteport'], models: [], agents: ['hermes'], load: 0, recentFailures: 0 },
-    { id: 'backup-mini', name: 'Backup Byteport Mac Mini', online: true, lastHeartbeatAt: ts, capabilities: ['research', 'attio', 'transcript.process'], identities: grokbotIds, models: ['openrouter-free'], agents: ['grokbot'], load: 0, recentFailures: 0 },
+    { id: 'backup-mini', name: 'Backup Byteport Mac Mini', online: true, lastHeartbeatAt: ts, capabilities: ['research', 'attio', 'transcript.process', 'linkedin.draft'], identities: ['katherine-byteport', ...grokbotIds], models: ['openrouter-free'], agents: ['grokbot', 'hermes'], load: 0, recentFailures: 0 },
     { id: 'destrys-hp', name: 'DestrysHP', online: false, lastHeartbeatAt: ts - 600_000, capabilities: ['research', 'coding'], identities: [], models: [], agents: ['claude-code'], load: 0, recentFailures: 1 },
   ]
   const workers: WorkerRecord[] = [
     { id: 'hermes-oakland', kind: 'hermes', machineId: 'oakland-mini', online: true, lastHeartbeatAt: ts, capabilities: ['research', 'attio', 'browser', 'linkedin.draft', 'meeting.brief', 'calendar', 'calendar.create', 'email.draft', 'email.send'], identities: ['alex-byteport', 'alex-gmail', 'alex-calendar'], models: ['ollama-local'], load: 0, permissions: ['internal'] },
+    { id: 'hermes-oakland-john', kind: 'hermes', machineId: 'oakland-mini', online: true, lastHeartbeatAt: ts, capabilities: ['linkedin.draft'], identities: ['john-gradient'], models: ['ollama-local'], load: 0, permissions: ['draft'] },
     { id: 'hermes-sf', kind: 'hermes', machineId: 'sf-mini', online: true, lastHeartbeatAt: ts, capabilities: ['linkedin.draft', 'browser', 'research', 'linkedin.send'], identities: ['katherine-byteport', 'alex-byteport'], models: [], load: 0, permissions: ['draft'] },
     { id: 'grokbot-backup', kind: 'grokbot', machineId: 'backup-mini', online: true, lastHeartbeatAt: ts, capabilities: ['research', 'attio', 'transcript.process'], identities: grokbotIds, models: ['openrouter-free'], load: 0, permissions: ['internal'] },
+    { id: 'hermes-backup', kind: 'hermes', machineId: 'backup-mini', online: true, lastHeartbeatAt: ts, capabilities: ['linkedin.draft', 'linkedin.send', 'browser'], identities: ['katherine-byteport'], models: ['openrouter-free'], load: 0, permissions: ['draft'] },
     { id: 'muse', kind: 'muse', machineId: 'oakland-mini', online: true, lastHeartbeatAt: ts, capabilities: ['research', 'campaign.define'], identities: [], models: ['claude-frontier'], load: 0, permissions: ['internal'] },
     { id: 'codex', kind: 'codex', machineId: 'oakland-mini', online: true, lastHeartbeatAt: ts, capabilities: ['coding'], identities: [], models: ['codex'], load: 0, permissions: ['internal'] },
   ]
@@ -1615,7 +1617,7 @@ export function defaultFleet(): Pick<FleetSnapshot, 'machines' | 'workers' | 'id
     { id: 'alex-gmail', teammate: 'alex', principal: 'byteport', channel: 'gmail', machineId: 'oakland-mini', sessionHost: 'hermes-oakland', sessionStatus: 'alive', autonomyLevel: 2, sendMode: 'draft_only' },
     { id: 'alex-calendar', teammate: 'alex', principal: 'byteport', channel: 'calendar', machineId: 'oakland-mini', sessionHost: 'hermes-oakland', sessionStatus: 'alive', autonomyLevel: 2, sendMode: 'draft_only' },
     { id: 'katherine-byteport', teammate: 'katherine', principal: 'byteport', channel: 'linkedin', machineId: 'sf-mini', sessionHost: 'hermes', sessionStatus: 'alive', autonomyLevel: 2, sendMode: 'draft_only' },
-    { id: 'john-gradient', teammate: 'john', principal: 'gradient', channel: 'linkedin', machineId: null, sessionHost: 'luey', sessionStatus: 'unknown', autonomyLevel: 3, sendMode: 'live' },
+    { id: 'john-gradient', teammate: 'john', principal: 'gradient', channel: 'linkedin', machineId: 'oakland-mini', sessionHost: 'hermes-oakland-john', sessionStatus: 'unknown', autonomyLevel: 3, sendMode: 'live' },
   ])
   const baseline: ModelRecord[] = [
     { id: 'ollama-local', provider: 'ollama', tier: 'local_free', available: true, costPerUnit: 0, latencyMs: 800, successRate: 0.9, capabilities: ['classify', 'extract', 'general'] },
