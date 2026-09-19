@@ -483,3 +483,206 @@ describe('executive commands + signals + full loop', () => {
     expect(result.attention).toMatch(/objective|approval|blocked|campaign|decision/i)
   })
 })
+
+describe('live Attio seed + Luma webhook + agentic-os bridge', () => {
+  it('reconciles against the live Byteport Attio company id without inventing CRM ids', async () => {
+    const { reconcileAgainstLiveAttio, BYTEPORT_LIVE_COMPANY, createLiveAttioAdapter } = await import('./attio-live')
+    const { adapter, mode } = createLiveAttioAdapter({
+      companies: [BYTEPORT_LIVE_COMPANY],
+      people: [{ recordId: 'person-live-1', name: 'Alex Newiger', email: 'alex@byteport.com' }],
+    })
+    expect(mode).toMatch(/live-seeded|http/)
+    const company = await adapter.findCompany({ domain: 'byteport.com' })
+    expect(company?.attioId).toBe(BYTEPORT_LIVE_COMPANY.recordId)
+    const result = await reconcileAgainstLiveAttio([
+      { key: 'person:alex', name: 'Alex Newiger', email: 'alex@byteport.com' },
+      { key: 'person:new', name: 'New Prospect', email: 'new@example.com' },
+    ], {
+      companies: [BYTEPORT_LIVE_COMPANY],
+      people: [{ recordId: 'person-live-1', name: 'Alex Newiger', email: 'alex@byteport.com' }],
+    })
+    expect(result.existing).toBe(1)
+    expect(result.newTargets).toBe(0)
+    expect(result.unmatched.map((item) => item.key)).toContain('person:new')
+    expect(result.verified).toBe(false)
+    expect(result.attioIds).toContain('person-live-1')
+    expect(result.attioIds.every((id) => !id.startsWith('attio_person_'))).toBe(true)
+  })
+
+  it('normalizes a Luma guest-approved webhook and advances Toronto RSVPs by event name', async () => {
+    const { normalizeLumaWebhook } = await import('./luma-webhook')
+    const plane = createTestPlane(tmp())
+    plane.submitObjective({
+      title: 'Toronto dinner',
+      intent: 'Get 20 qualified infrastructure leaders to the Toronto dinner.',
+      sourceInterface: 'hermes',
+    })
+    const normalized = normalizeLumaWebhook({
+      type: 'guest.approved',
+      data: {
+        event: { name: 'Byteport Toronto Dinner', api_id: 'evt_toronto_1' },
+        guest: { email: 'vp@acme.example', name: 'Pat VP', status: 'approved' },
+      },
+    })
+    expect(normalized).toBeTruthy()
+    plane.ingestEvent(normalized!.type, normalized!.source, normalized!.payload)
+    expect(plane.campaignStatus('Toronto')).toMatch(/1\/20 RSVPs/)
+    expect(plane.snapshot().events.some((event) => event.type === 'luma.rsvp')).toBe(true)
+  })
+
+  it('exports Fleet OS state as agentic-os ledger-compatible outbox events', async () => {
+    const { buildAgenticOutbox, ledgerEventsFromOutbox } = await import('./agentic-bridge')
+    const plane = createTestPlane(tmp())
+    plane.submitObjective({
+      title: 'Toronto dinner',
+      intent: 'Get 20 qualified infrastructure leaders to the Toronto dinner.',
+      sourceInterface: 'hermes',
+    })
+    const job = plane.claimNext('hermes-oakland')
+    if (job) {
+      plane.completeJob({
+        jobId: job.id,
+        workerId: 'hermes-oakland',
+        result: { ok: true },
+        verified: true,
+      })
+    }
+    const snap = plane.snapshot()
+    const outbox = buildAgenticOutbox({
+      objectives: snap.objectives,
+      events: snap.events,
+      jobs: snap.jobs,
+      attempts: snap.attempts,
+    })
+    expect(outbox.some((entry) => entry.type === 'fleet.objective.upserted')).toBe(true)
+    expect(outbox.some((entry) => entry.type.startsWith('fleet.job.'))).toBe(true)
+    const ledger = ledgerEventsFromOutbox(outbox)
+    expect(ledger.every((entry) => entry.eventId && entry.streamId && entry.type)).toBe(true)
+    expect(new Set(ledger.map((entry) => entry.eventId)).size).toBe(ledger.length)
+  })
+
+  it('appends outbox events into an agentic-os-compatible SQLite ledger idempotently', async () => {
+    const { buildAgenticOutbox } = await import('./agentic-bridge')
+    const { verifyLedgerIdempotency } = await import('./agentic-ledger')
+    const { BYTEPORT_LIVE_ALEX } = await import('./attio-live')
+    const plane = createTestPlane(tmp())
+    plane.submitObjective({
+      title: 'Toronto dinner',
+      intent: 'Get 20 qualified infrastructure leaders to the Toronto dinner.',
+      sourceInterface: 'hermes',
+    })
+    const snap = plane.snapshot()
+    const outbox = buildAgenticOutbox({
+      objectives: snap.objectives,
+      events: snap.events,
+      jobs: snap.jobs,
+      attempts: snap.attempts,
+    })
+    const ledgerFile = `${tmp()}/agentic-ledger.sqlite`
+    const { first, second } = verifyLedgerIdempotency(outbox, ledgerFile)
+    expect(first.inserted).toBeGreaterThan(0)
+    expect(first.failed).toHaveLength(0)
+    expect(second.inserted).toBe(0)
+    expect(second.skipped).toBe(first.attempted)
+    expect(second.latestSequence).toBe(first.latestSequence)
+    expect(BYTEPORT_LIVE_ALEX.recordId).toBe('6a89dc7a-81be-4f9b-bed2-724564ee3e97')
+  })
+
+  it('discovers a free fallback model pool so workflows never hard-fail', async () => {
+    const { discoverModelPool, preferredTierForKind } = await import('./model-pool')
+    const pool = discoverModelPool()
+    expect(pool.some((model) => model.tier === 'deterministic')).toBe(true)
+    expect(pool.some((model) => model.tier === 'local_free' && model.available)).toBe(true)
+    expect(preferredTierForKind('attio.reconcile')[0]).toBe('deterministic')
+    expect(preferredTierForKind('linkedin.draft')).toContain('frontier')
+  })
+
+  it('loads the durable MCP-refreshed Attio snapshot with real Byteport team ids', async () => {
+    const { loadAttioLiveSnapshot } = await import('./attio-cache')
+    const { createLiveAttioAdapter } = await import('./attio-live')
+    const snapshot = loadAttioLiveSnapshot()
+    expect(snapshot?.companies[0]?.recordId).toBe('8fc484a3-8e27-4d9e-9223-ecfa3114a002')
+    expect(snapshot?.people.some((person) => person.email === 'alex@byteport.com')).toBe(true)
+    expect(snapshot?.people.some((person) => person.email === 'jayram@byteport.com')).toBe(true)
+    const { adapter, mode } = createLiveAttioAdapter()
+    expect(mode).toBe('live-seeded')
+    const jayram = await adapter.findPerson({ email: 'jayram@byteport.com' })
+    expect(jayram?.attioId).toBe('8aed6ffa-3397-4d06-b59e-79663afa28d1')
+  })
+
+  it('continues Toronto across Oakland→Backup hosts sharing one durable state file', async () => {
+    const { runMultiHostContinuitySim } = await import('./multi-host-sim')
+    const result = await runMultiHostContinuitySim(tmp())
+    expect(result.grokSameObjective).toBe(true)
+    expect(result.oaklandOffline).toBe(true)
+    expect(result.grokOnline).toBe(true)
+    expect(result.jobsCompleted).toBeGreaterThan(0)
+    expect(result.ledger.afterOakland?.inserted).toBeGreaterThan(0)
+    expect(result.ledger.grewOrStable).toBe(true)
+    expect(result.toronto.picture).toMatch(/Toronto/i)
+  })
+
+  it('coordinates Hermes and GrokBot over the HTTP control plane', async () => {
+    const { runHttpFleetE2E } = await import('./http-e2e')
+    const result = await runHttpFleetE2E(tmp())
+    expect(result.grokSameObjective).toBe(true)
+    expect(result.oaklandDrained + result.backupDrained).toBeGreaterThan(0)
+    expect(result.health.oaklandOffline).toBe(true)
+    expect(String(result.lumaCampaign)).toMatch(/1\/20 RSVPs/)
+    expect(Number(result.ledgerInserted)).toBeGreaterThan(0)
+    expect(result.sessionUnhealthy).toBeGreaterThanOrEqual(1)
+    expect(result.reclaimed).toBe(0)
+    expect(result.readinessReady).toBe(false)
+    expect(result.readinessBlockers).toBeGreaterThan(0)
+    expect(result.attioReconcileExisting).toBeGreaterThanOrEqual(1)
+    expect(result.seededMachines).toEqual(expect.arrayContaining(['oakland-mini', 'backup-mini', 'sf-mini']))
+  })
+
+  it('maps Attio live people onto fleet sender identities', async () => {
+    const { buildIdentityMap, resolveSenderForPrincipal } = await import('./identity-map')
+    const map = buildIdentityMap()
+    expect(map.some((link) => link.email === 'alex@byteport.com' && link.attioId === '6a89dc7a-81be-4f9b-bed2-724564ee3e97')).toBe(true)
+    expect(map.some((link) => link.email === 'jayram@byteport.com')).toBe(true)
+    expect(resolveSenderForPrincipal('byteport')?.fleetIdentityId).toBeTruthy()
+  })
+
+  it('persists HTTP objectives across process-plane cache reset via the shared store file', async () => {
+    const { getFleetPlane, resetFleetPlaneCache } = await import('./runtime')
+    const statePath = `${tmp()}/state.json`
+    resetFleetPlaneCache()
+    const first = getFleetPlane({ statePath, seed: true })
+    first.submitObjective({
+      title: 'Toronto dinner',
+      intent: 'Get 20 qualified infrastructure leaders to the Toronto dinner.',
+      sourceInterface: 'hermes',
+    })
+    resetFleetPlaneCache()
+    const second = getFleetPlane({ statePath, seed: false })
+    expect(second.snapshot().objectives.some((item) => /toronto/i.test(item.title))).toBe(true)
+    const grok = second.submitObjective({
+      title: 'Toronto dinner',
+      intent: 'Where are we on Toronto?',
+      sourceInterface: 'grokbot',
+    })
+    expect(grok.objective.id).toBe(first.snapshot().objectives[0].id)
+    resetFleetPlaneCache()
+  })
+
+  it('blocks live sends when the identity session needs login', async () => {
+    const { decideAutonomy } = await import('./autonomy')
+    const decision = decideAutonomy('linkedin.send', {
+      id: 'katherine-byteport',
+      teammate: 'katherine',
+      principal: 'byteport',
+      channel: 'linkedin',
+      machineId: 'sf-mini',
+      sessionHost: 'hermes',
+      sessionStatus: 'needs_login',
+      autonomyLevel: 3,
+      sendMode: 'live',
+    })
+    expect(decision.execute).toBe(false)
+    expect(decision.allow).toBe(false)
+    expect(decision.reason).toMatch(/needs_login/)
+  })
+})
