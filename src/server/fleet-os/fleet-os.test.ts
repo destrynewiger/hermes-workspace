@@ -686,3 +686,87 @@ describe('live Attio seed + Luma webhook + agentic-os bridge', () => {
     expect(decision.reason).toMatch(/needs_login/)
   })
 })
+
+describe('gmail + calendar verification', () => {
+  it('does not treat a calendar create as complete without calendar lookup', () => {
+    const missing = verifyJobResult({ kind: 'calendar.create', result: { eventId: 'evt-1' }, evidence: [] })
+    expect(missing.ok).toBe(false)
+    const ok = verifyJobResult(
+      { kind: 'calendar.create', result: { eventId: 'evt-1' }, evidence: [] },
+      { calendarLookup: (id) => id === 'evt-1' },
+    )
+    expect(ok.ok).toBe(true)
+  })
+
+  it('verifies Gmail sends against Sent and suppresses a duplicate to the same person', async () => {
+    const { runEmailCalendarVerifyLoop } = await import('./gtm-loop')
+    const plane = createTestPlane(tmp())
+    const result = await runEmailCalendarVerifyLoop(plane)
+    expect(result.email.every((job) => job.state === 'completed')).toBe(true)
+    expect(result.gmailSent).toHaveLength(1)
+    expect(result.email.some((job) => job.result?.skipped === true)).toBe(true)
+    expect(result.calendar?.state).toBe('completed')
+    expect(result.calendarEvents).toHaveLength(1)
+    expect(result.calendar?.evidence.some((item) => item.verified && item.kind === 'calendar')).toBe(true)
+  })
+})
+
+describe('dead-letter reclaim', () => {
+  it('returns exhausted jobs to the queue so another worker can continue', () => {
+    const plane = createTestPlane(tmp())
+    const { objective } = plane.submitObjective({
+      title: 'Retryable research',
+      intent: 'Research a stuck account',
+      sourceInterface: 'hermes',
+    })
+    const workflowId = plane.snapshot().workflows.find((item) => item.objectiveId === objective.id)!.id
+    plane.enqueueBackgroundJob({
+      objectiveId: objective.id,
+      workflowId,
+      kind: 'research.run',
+      title: 'Failover research',
+      priority: 'P2',
+      requiredCapabilities: ['research'],
+      idempotencyKey: 'dead-letter-research-1',
+      entityKey: 'company:acme',
+    })
+    const start = Date.now()
+    const target = plane.snapshot().jobs.find((job) => job.idempotencyKey === 'dead-letter-research-1')
+    expect(target).toBeTruthy()
+    let failures = 0
+    let guard = 0
+    while (failures < 3 && guard++ < 20) {
+      const claimed = plane.claimNext('hermes-oakland', start + guard * 1_000)
+      expect(claimed).toBeTruthy()
+      if (claimed!.id !== target!.id) {
+        plane.completeJob({ jobId: claimed!.id, workerId: 'hermes-oakland', result: { ok: true }, verified: true })
+        continue
+      }
+      const failed = plane.failJob({
+        jobId: claimed!.id,
+        workerId: 'hermes-oakland',
+        error: 'transient worker crash',
+      })
+      failures += 1
+      if (failures < 3) expect(failed?.state).toBe('queued')
+      else expect(failed?.state).toBe('dead_letter')
+    }
+    expect(failures).toBe(3)
+    expect(plane.picture()).toMatch(/dead-letter/)
+    const reclaimed = plane.reclaimDeadLetters({ jobId: target!.id, at: start + 10_000 })
+    expect(reclaimed).toHaveLength(1)
+    expect(reclaimed[0].state).toBe('queued')
+    plane.heartbeat({ workerId: 'grokbot-backup', at: start + 11_000 })
+    let stolen = null as ReturnType<typeof plane.claimNext>
+    for (let i = 0; i < 8; i += 1) {
+      const claimed = plane.claimNext('grokbot-backup', start + 12_000 + i * 1_000)
+      if (!claimed) break
+      if (claimed.id === target!.id) {
+        stolen = claimed
+        break
+      }
+      plane.completeJob({ jobId: claimed.id, workerId: 'grokbot-backup', result: { ok: true }, verified: true })
+    }
+    expect(stolen?.id).toBe(target!.id)
+  })
+})
