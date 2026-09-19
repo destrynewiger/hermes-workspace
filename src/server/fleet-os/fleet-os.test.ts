@@ -41,6 +41,20 @@ describe('fleet-os control plane', () => {
     expect(plane.status('Toronto').picture).toMatch(/Toronto dinner/)
     expect(fromGrok.jobs.length).toBeGreaterThan(1)
   })
+
+  it('dispatches LinkedIn drafts to Katherine rather than the first idle machine', () => {
+    const plane = createTestPlane(tmp())
+    plane.submitObjective({
+      title: 'Toronto dinner',
+      intent: 'Get 20 qualified infrastructure leaders to the Toronto dinner.',
+      sourceInterface: 'muse',
+    })
+    const oakland = plane.claimNext('hermes-oakland')
+    expect(oakland?.requiredIdentityId).not.toBe('katherine-byteport')
+    const katherine = plane.claimNext('hermes-sf')
+    expect(katherine?.requiredIdentityId).toBe('katherine-byteport')
+    expect(katherine?.assignedMachineId).toBe('sf-mini')
+  })
 })
 
 describe('required coverage', () => {
@@ -55,10 +69,7 @@ describe('required coverage', () => {
   it('enriches backup-mini IP from tailscale status peers', async () => {
     const { enrichMeshFromTailscaleStatus } = await import('./fleet-mesh')
     const enriched = enrichMeshFromTailscaleStatus({
-      Self: {
-        HostName: 'alex-mac-mini-1',
-        TailscaleIPs: ['100.118.142.13'],
-      },
+      Self: { HostName: 'alex-mac-mini-1', TailscaleIPs: ['100.118.142.13'] },
       Peer: {
         a: { HostName: 'alex-agent-mini', TailscaleIPs: ['100.106.243.19'] },
         b: { HostName: 'backup-byteport-mini', TailscaleIPs: ['100.99.88.77'] },
@@ -90,9 +101,7 @@ describe('required coverage', () => {
     try {
       const { handleFleetHttp } = await import('./api-handlers')
       const plane = createTestPlane(tmp())
-      const result = await handleFleetHttp(plane, 'POST', new URLSearchParams(), {
-        action: 'duo-poll',
-      })
+      const result = await handleFleetHttp(plane, 'POST', new URLSearchParams(), { action: 'duo-poll' })
       expect(result.status).toBe(200)
       expect(result.body.ingested).toBe(1)
       expect(seen[0]).toContain('api.amplemarket.com/duo_leads')
