@@ -297,6 +297,7 @@ describe('autonomy', () => {
       idempotencyKey: 'hold-send-1',
       entityKey: 'linkedin.com/in/x',
     })
+    // Drain non-send work first; the send must remain blocked pending approval.
     let guard = 0
     while (guard++ < 5) {
       const job = plane.claimNext('hermes-sf')
@@ -355,9 +356,17 @@ describe('campaign + LinkedIn ledger', () => {
       gaps: [] as string[],
       updatedAt: Date.now(),
     }
-    bumpFromJob(campaign, { id: 'job_1', kind: 'account.research', result: { qualified: 50 } } as never)
+    bumpFromJob(campaign, {
+      id: 'job_1',
+      kind: 'account.research',
+      result: { qualified: 50 },
+    } as never)
     expect(campaign.contacted).toBe(0)
-    bumpFromJob(campaign, { id: 'job_2', kind: 'linkedin.draft', result: { drafts: 9 } } as never)
+    bumpFromJob(campaign, {
+      id: 'job_2',
+      kind: 'linkedin.draft',
+      result: { drafts: 9 },
+    } as never)
     expect(campaign.contacted).toBe(1)
   })
 
@@ -380,9 +389,16 @@ describe('machine heartbeat protocol', () => {
       identities: [],
       models: [],
       agents: ['claude-code'],
-      workers: [{ id: 'claude-destrys', kind: 'claude-code', capabilities: ['research', 'coding'], identities: [], models: [] }],
+      workers: [{
+        id: 'claude-destrys',
+        kind: 'claude-code',
+        capabilities: ['research', 'coding'],
+        identities: [],
+        models: [],
+      }],
     })
-    expect(plane.snapshot().machines.find((item) => item.id === 'destrys-hp')?.online).toBe(true)
+    const machine = plane.snapshot().machines.find((item) => item.id === 'destrys-hp')
+    expect(machine?.online).toBe(true)
     expect(plane.snapshot().workers.some((item) => item.id === 'claude-destrys' && item.online)).toBe(true)
   })
 
@@ -408,9 +424,62 @@ describe('machine heartbeat protocol', () => {
   it('advertises all seeded Tailscale hosts including DestrysHP', async () => {
     const { FLEET_MACHINE_SEEDS } = await import('./heartbeat')
     const plane = createTestPlane(tmp())
-    for (const seed of FLEET_MACHINE_SEEDS) plane.applyMachineAdvertisement({ ...seed, at: Date.now() })
+    for (const seed of FLEET_MACHINE_SEEDS) {
+      plane.applyMachineAdvertisement({ ...seed, at: Date.now() })
+    }
     const health = plane.fleetHealth()
-    expect(health.onlineMachines).toEqual(expect.arrayContaining(['oakland-mini', 'sf-mini', 'backup-mini', 'destrys-hp']))
+    expect(health.onlineMachines).toEqual(expect.arrayContaining([
+      'oakland-mini',
+      'sf-mini',
+      'backup-mini',
+      'destrys-hp',
+    ]))
     expect(health.onlineWorkers).toContain('claude-destrys')
+  })
+})
+
+describe('executive commands + signals + full loop', () => {
+  it('parses Alex objectives and status questions into shared-state actions', async () => {
+    const { executeExecutiveCommand } = await import('./executive')
+    const plane = createTestPlane(tmp())
+    const created = executeExecutiveCommand(
+      plane,
+      'Get 20 qualified infrastructure leaders to the Toronto dinner.',
+      'hermes',
+    )
+    expect(created.objectiveId).toBeTruthy()
+    const status = executeExecutiveCommand(plane, 'Where are we on Toronto dinner?', 'grokbot')
+    expect(status.objectiveId).toBe(created.objectiveId)
+    expect(status.picture).toMatch(/Toronto/i)
+  })
+
+  it('normalizes a Sumble signal into actionable research work', () => {
+    const plane = createTestPlane(tmp())
+    plane.ingestEvent('signal.detected', 'sumble', {
+      company: 'Acme',
+      signal: 'multi-cloud warehouse migration',
+      strength: 0.9,
+    })
+    const jobs = plane.snapshot().jobs
+    expect(jobs.some((job) => job.kind === 'account.research')).toBe(true)
+    expect(plane.snapshot().events.some((event) => event.payload.normalized)).toBe(true)
+  })
+
+  it('runs the full signal→meeting→follow-up loop with cross-agent continuity and failover', async () => {
+    const { runFullGtmLoop } = await import('./gtm-loop')
+    const plane = createTestPlane(tmp())
+    const result = await runFullGtmLoop(plane, {
+      liveCompanies: [{ recordId: '8fc484a3-8e27-4d9e-9223-ecfa3114a002', name: 'Byteport', domain: 'byteport.com' }],
+    })
+    expect(result.grokSameObjective).toBe(true)
+    expect(result.commitments.length).toBeGreaterThan(0)
+    expect(result.eventTypes).toEqual(expect.arrayContaining([
+      'objective.created',
+      'signal.detected',
+      'calendar.external_meeting_soon',
+      'granola.transcript_available',
+    ]))
+    expect(result.failover?.recovered).toBe(true)
+    expect(result.attention).toMatch(/objective|approval|blocked|campaign|decision/i)
   })
 })
