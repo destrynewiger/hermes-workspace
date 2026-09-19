@@ -54,8 +54,6 @@ export function enqueueBackgroundWork(plane: FleetControlPlane, options?: {
 
   for (const spec of BACKGROUND_SPECS) {
     if (!allowed.has(spec.kind)) continue
-    // Use control plane enqueue via a tiny internal job complete with nextJobs pattern:
-    // submit a no-op research job completion is heavy; instead mutate through a dedicated API.
     const key = `bg:${spec.kind}`
     const exists = plane.snapshot().jobs.some((job) => job.idempotencyKey === key && job.state !== 'dead_letter')
     if (exists) {

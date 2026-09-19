@@ -48,7 +48,6 @@ export function calendarEventsToFleetEvents(
     if (onlyExternal && !calendarEventIsExternal(event)) continue
     const external = (event.attendees ?? []).filter(isExternalAttendee)
     const title = event.summary?.trim() || 'External meeting'
-    // Skip pure internal prep notes that mirror an external call title
     if (/^internal notes\s*\|/i.test(title) && external.length === 0) continue
     out.push({
       type: 'calendar.external_meeting_soon',
