@@ -92,6 +92,7 @@ import { Route as ApiHermesTasksRouteImport } from './routes/api/hermes-tasks'
 import { Route as ApiHermesConfigRouteImport } from './routes/api/hermes-config'
 import { Route as ApiGatewayStatusRouteImport } from './routes/api/gateway-status'
 import { Route as ApiGatewayReprobeRouteImport } from './routes/api/gateway-reprobe'
+import { Route as ApiFleetOsRouteImport } from './routes/api/fleet-os'
 import { Route as ApiFilesRouteImport } from './routes/api/files'
 import { Route as ApiEventsRouteImport } from './routes/api/events'
 import { Route as ApiCrewStatusRouteImport } from './routes/api/crew-status'
@@ -586,6 +587,11 @@ const ApiGatewayReprobeRoute = ApiGatewayReprobeRouteImport.update({
   path: '/api/gateway-reprobe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFleetOsRoute = ApiFleetOsRouteImport.update({
+  id: '/api/fleet-os',
+  path: '/api/fleet-os',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFilesRoute = ApiFilesRouteImport.update({
   id: '/api/files',
   path: '/api/files',
@@ -1024,6 +1030,7 @@ export interface FileRoutesByFullPath {
   '/api/crew-status': typeof ApiCrewStatusRoute
   '/api/events': typeof ApiEventsRoute
   '/api/files': typeof ApiFilesRoute
+  '/api/fleet-os': typeof ApiFleetOsRoute
   '/api/gateway-reprobe': typeof ApiGatewayReprobeRoute
   '/api/gateway-status': typeof ApiGatewayStatusRoute
   '/api/hermes-config': typeof ApiHermesConfigRoute
@@ -1185,6 +1192,7 @@ export interface FileRoutesByTo {
   '/api/crew-status': typeof ApiCrewStatusRoute
   '/api/events': typeof ApiEventsRoute
   '/api/files': typeof ApiFilesRoute
+  '/api/fleet-os': typeof ApiFleetOsRoute
   '/api/gateway-reprobe': typeof ApiGatewayReprobeRoute
   '/api/gateway-status': typeof ApiGatewayStatusRoute
   '/api/hermes-config': typeof ApiHermesConfigRoute
@@ -1348,6 +1356,7 @@ export interface FileRoutesById {
   '/api/crew-status': typeof ApiCrewStatusRoute
   '/api/events': typeof ApiEventsRoute
   '/api/files': typeof ApiFilesRoute
+  '/api/fleet-os': typeof ApiFleetOsRoute
   '/api/gateway-reprobe': typeof ApiGatewayReprobeRoute
   '/api/gateway-status': typeof ApiGatewayStatusRoute
   '/api/hermes-config': typeof ApiHermesConfigRoute
@@ -1512,6 +1521,7 @@ export interface FileRouteTypes {
     | '/api/crew-status'
     | '/api/events'
     | '/api/files'
+    | '/api/fleet-os'
     | '/api/gateway-reprobe'
     | '/api/gateway-status'
     | '/api/hermes-config'
@@ -1673,6 +1683,7 @@ export interface FileRouteTypes {
     | '/api/crew-status'
     | '/api/events'
     | '/api/files'
+    | '/api/fleet-os'
     | '/api/gateway-reprobe'
     | '/api/gateway-status'
     | '/api/hermes-config'
@@ -1835,6 +1846,7 @@ export interface FileRouteTypes {
     | '/api/crew-status'
     | '/api/events'
     | '/api/files'
+    | '/api/fleet-os'
     | '/api/gateway-reprobe'
     | '/api/gateway-status'
     | '/api/hermes-config'
@@ -1998,6 +2010,7 @@ export interface RootRouteChildren {
   ApiCrewStatusRoute: typeof ApiCrewStatusRoute
   ApiEventsRoute: typeof ApiEventsRoute
   ApiFilesRoute: typeof ApiFilesRoute
+  ApiFleetOsRoute: typeof ApiFleetOsRoute
   ApiGatewayReprobeRoute: typeof ApiGatewayReprobeRoute
   ApiGatewayStatusRoute: typeof ApiGatewayStatusRoute
   ApiHermesConfigRoute: typeof ApiHermesConfigRoute
@@ -2666,6 +2679,13 @@ declare module '@tanstack/react-router' {
       path: '/api/gateway-reprobe'
       fullPath: '/api/gateway-reprobe'
       preLoaderRoute: typeof ApiGatewayReprobeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/fleet-os': {
+      id: '/api/fleet-os'
+      path: '/api/fleet-os'
+      fullPath: '/api/fleet-os'
+      preLoaderRoute: typeof ApiFleetOsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/files': {
@@ -3467,6 +3487,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCrewStatusRoute: ApiCrewStatusRoute,
   ApiEventsRoute: ApiEventsRoute,
   ApiFilesRoute: ApiFilesRoute,
+  ApiFleetOsRoute: ApiFleetOsRoute,
   ApiGatewayReprobeRoute: ApiGatewayReprobeRoute,
   ApiGatewayStatusRoute: ApiGatewayStatusRoute,
   ApiHermesConfigRoute: ApiHermesConfigRoute,

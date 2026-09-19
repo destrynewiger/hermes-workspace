@@ -1,0 +1,23 @@
+{
+  "name": "@byteport/fleet-os",
+  "private": true,
+  "type": "module",
+  "description": "Shared GTM control plane: objectives, jobs, identity routing, leases, model failover.",
+  "scripts": {
+    "test": "vitest run",
+    "demo": "tsx demo.ts",
+    "fleet-worker": "tsx fleet-worker.ts",
+    "fleet-cmd": "tsx fleet-cmd.ts",
+    "fleet-advertise": "tsx fleet-advertise.ts",
+    "fleet-mesh-probe": "tsx fleet-mesh-probe.ts",
+    "fleet-sync-ledger": "tsx fleet-sync-ledger.ts",
+    "fleet-server": "tsx fleet-server.ts",
+    "fleet-refresh-sot": "tsx fleet-refresh-sot.ts",
+    "http-e2e": "tsx -e \"import { mkdtempSync } from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { runHttpFleetE2E } from './http-e2e.ts'; console.log(JSON.stringify(await runHttpFleetE2E(mkdtempSync(path.join(os.tmpdir(), 'fleet-http-'))), null, 2))\""
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
