@@ -770,3 +770,91 @@ describe('dead-letter reclaim', () => {
     expect(stolen?.id).toBe(target!.id)
   })
 })
+
+describe('live Attio + MCP SoT readiness', () => {
+  it('loads the MCP-refreshed Attio snapshot and reconciles real Byteport ids', async () => {
+    const { reconcileAgainstLiveAttio, BYTEPORT_LIVE_ALEX } = await import('./attio-live')
+    const result = await reconcileAgainstLiveAttio([
+      { key: 'person:alex', name: 'Alex Newiger', email: 'alex@byteport.com', company: 'Byteport' },
+      { key: 'person:jayram', name: 'Jayram Palamadai', email: 'jayram@byteport.com', company: 'Byteport' },
+    ])
+    expect(result.mode).toMatch(/live-seeded|http/)
+    expect(result.existing).toBeGreaterThanOrEqual(2)
+    expect(result.attioIds).toContain(BYTEPORT_LIVE_ALEX.recordId)
+    expect(result.verified).toBe(true)
+  })
+
+  it('verifies real Gmail Sent and Calendar proofs from the MCP SoT cache', async () => {
+    const { storesFromMcpSotSnapshot, loadMcpSotSnapshot } = await import('./mcp-sot-cache')
+    const { verifyGmailSend, verifyCalendarCreate } = await import('./sot-verify')
+    const snapshot = loadMcpSotSnapshot()
+    expect(snapshot?.gmailSent.length).toBeGreaterThan(0)
+    expect(snapshot?.calendarEvents.length).toBeGreaterThan(0)
+    const { gmailSent, calendarEvents } = storesFromMcpSotSnapshot()
+    const mail = verifyGmailSend(gmailSent, { messageId: snapshot!.gmailSent[0].messageId })
+    const cal = verifyCalendarCreate(calendarEvents, { eventId: snapshot!.calendarEvents[0].eventId })
+    expect(mail.ok).toBe(true)
+    expect(cal.ok).toBe(true)
+  })
+
+  it('reports production DoD blockers until Attio key and Tailscale heartbeats exist', async () => {
+    const plane = createTestPlane(tmp())
+    const { assessFleetReadiness } = await import('./readiness')
+    const readiness = assessFleetReadiness(plane)
+    expect(readiness.readyForProductionDoD).toBe(false)
+    expect(readiness.blockers.some((item) =>
+      item.startsWith('attio-http-key')
+      || item.startsWith('attio-live-verified')
+      || item.startsWith('fresh-host-heartbeats')
+      || item.startsWith('tailscale-mesh'),
+    )).toBe(true)
+    expect(readiness.picture).toMatch(/not production-ready/)
+  })
+
+  it('treats a fresh Composio Attio proof as live SoT wiring', async () => {
+    const { assessFleetReadiness } = await import('./readiness')
+    const { attioProofIsFresh, loadAttioLiveProof } = await import('./attio-remote')
+    const proof = loadAttioLiveProof()
+    expect(attioProofIsFresh(proof)).toBe(true)
+    const plane = createTestPlane(tmp())
+    const readiness = assessFleetReadiness(plane)
+    expect(readiness.checks.some((check) => check.id === 'attio-live-verified' && check.ok)).toBe(true)
+  })
+
+  it('tolerates Attio proof timestamps slightly ahead of the server clock', async () => {
+    const { attioProofIsFresh } = await import('./attio-remote')
+    const at = Date.now()
+    const proof = {
+      verifiedAt: new Date(at + 30_000).toISOString(),
+      source: 'attio-mcp' as const,
+      workspace: 'byteport',
+      people: [{ recordId: 'x', name: 'Alex', email: 'alex@byteport.com' }],
+      companies: [],
+    }
+    expect(attioProofIsFresh(proof, undefined, at)).toBe(true)
+    expect(attioProofIsFresh(proof, undefined, at, 1_000)).toBe(false)
+  })
+
+  it('maps Sumble monitor output into Fleet OS signal events', async () => {
+    const { sumbleMonitorToFleetEvents, buildMigrationPlan } = await import('./migration')
+    const events = sumbleMonitorToFleetEvents({
+      researched: 3,
+      newSignals: 1,
+      signals: [{ company: 'Acme', detail: 'PagerDuty detected', kind: 'incident_stack' }],
+    })
+    expect(events).toHaveLength(1)
+    expect(events[0].type).toBe('signal.detected')
+    expect(events[0].source).toBe('research')
+    const plan = buildMigrationPlan()
+    expect(plan.wrap.some((item) => item.id === 'gtm-account-signal-monitor')).toBe(true)
+    expect(plan.deprecate.some((item) => item.id === 'gtm-sumble-monitor')).toBe(true)
+    expect(plan.reuse.some((item) => item.id === 'agentic-os-ledger')).toBe(true)
+    const briefEvent = (await import('./migration')).dailyBriefToFleetEvent({
+      asOf: '2026-09-18',
+      briefId: 'brief-1',
+      changeCount: 2,
+    })
+    expect(briefEvent.source).toBe('byteport-hermes')
+    expect(briefEvent.payload.kind).toBe('meeting.brief_tomorrow')
+  })
+})
