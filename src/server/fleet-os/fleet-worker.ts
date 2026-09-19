@@ -3,7 +3,7 @@
  * Fleet worker protocol CLI.
  * Machines run: pnpm fleet-worker --worker hermes-oakland --advertise oakland-mini
  * Or against an HTTP control plane: FLEET_OS_URL=http://host:3000/api/fleet-os
-*/
+ */
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { FleetControlPlane } from './control-plane'
@@ -24,8 +24,7 @@ async function httpAction(base: string, body: Record<string, unknown>) {
     body: JSON.stringify(body),
   })
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`)
-  return response.json() as Promise<Record<string, unknown>
-
+  return response.json() as Promise<Record<string, unknown>>
 }
 
 async function main() {
