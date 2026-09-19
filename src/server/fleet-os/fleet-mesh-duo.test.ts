@@ -84,4 +84,10 @@ describe('oakland mesh + duo signals', () => {
     expect(wizard).toContain('liveFromThisHost')
     expect(wizard).toContain('write_env FLEET_TAILSCALE_MESH 0')
   })
+
+  it('starts the Cursor self-hosted worker during host bootstrap', () => {
+    const bootstrap = readFileSync(new URL('./scripts/bootstrap-fleet-host.sh', import.meta.url), 'utf8')
+    expect(bootstrap).toContain('cursor worker start')
+    expect(bootstrap).toContain('command -v cursor')
+  })
 })
