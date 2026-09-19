@@ -212,20 +212,15 @@ write_env FLEET_ATTIO_API_KEY "$ATTIO_API_KEY"
 stage "Tailscale mesh"
 say "The cloud agent cannot fake Tailscale. This host must be on the mesh."
 if command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then
-  note "tailscale status succeeded on this host."
-  write_env FLEET_TAILSCALE_MESH 1
+  note "tailscale status succeeded. That is not liveFromThisHost yet."
 else
   warn "tailscale not ready."
   open_url "https://login.tailscale.com/admin/machines"
-  step "Install/login Tailscale on this Mac if needed, then confirm oakland-mini is reachable."
+  step "Install/login Tailscale on this Mac if needed, then confirm alex-mac-mini-1 is on the tailnet."
   pause "Press enter after 'tailscale status' works."
-  if command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then
-    write_env FLEET_TAILSCALE_MESH 1
-  else
-    write_env FLEET_TAILSCALE_MESH 0
-    warn "Leaving FLEET_TAILSCALE_MESH=0 — readiness will stay blocked."
-  fi
 fi
+write_env FLEET_TAILSCALE_MESH 0
+note "bootstrap-fleet-host.sh will stamp FLEET_TAILSCALE_MESH=1 only after fleet-mesh-probe reports liveFromThisHost."
 
 stage "Control plane URL + ledger"
 say "Workers point at Oakland's fleet-server. Oakland itself hosts :8787."
