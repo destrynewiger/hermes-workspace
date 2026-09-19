@@ -11,6 +11,8 @@ export type FleetMeshHost = {
   tailscaleHostname: string
   tailscaleAliases?: string[]
   tailscaleIp: string
+  /** Probe hint only. Never fills tailscaleIp or mesh liveness by itself. */
+  lastKnownTailscaleIp?: string
   tailnet: string
   sshUser: string
   expectedFleetPort: number
@@ -52,11 +54,12 @@ export const FLEET_MESH_HOSTS: FleetMeshHost[] = [
     tailscaleHostname: 'backup-byteport-mini',
     tailscaleAliases: ['backup-mini', 'byteport-backup', 'alex-backup-mini'],
     tailscaleIp: '',
+    lastKnownTailscaleIp: '100.90.155.111',
     tailnet: 'tail1b1137.ts.net',
     sshUser: 'destrynewiger',
     expectedFleetPort: 8787,
-    identities: [],
-    notes: 'Failover research / GrokBot. Confirm Tailscale hostname+IP on first bootstrap via `tailscale status --json` enrichment.',
+    identities: ['alex-byteport', 'katherine-byteport'],
+    notes: 'Failover research / GrokBot + Katherine LinkedIn. Last-known Tailscale IP 100.90.155.111 is a probe target only; live IP comes from Oakland netmap or ping.',
   },
   {
     machineId: 'destrys-hp',
@@ -116,7 +119,7 @@ export function meshHostByMachineId(machineId: string, hosts: FleetMeshHost[] = 
   return hosts.find((host) => host.machineId === machineId)
 }
 
-/** Build MagicDNS / IP targets for a host (skips empty IP). */
+/** Build MagicDNS / IP targets for a host (skips empty live IP). lastKnown is a probe hint only. */
 export function meshProbeTargets(host: FleetMeshHost): string[] {
   const targets: string[] = []
   if (host.tailscaleIp) targets.push(host.tailscaleIp)
@@ -125,6 +128,9 @@ export function meshProbeTargets(host: FleetMeshHost): string[] {
   }
   for (const alias of host.tailscaleAliases ?? []) {
     if (alias && host.tailnet) targets.push(`${alias}.${host.tailnet}`)
+  }
+  if (host.lastKnownTailscaleIp && !targets.includes(host.lastKnownTailscaleIp)) {
+    targets.push(host.lastKnownTailscaleIp)
   }
   return targets
 }

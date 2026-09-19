@@ -65,11 +65,12 @@ export const FLEET_MACHINE_SEEDS: MachineAdvertisement[] = [
     machineId: 'oakland-mini',
     name: 'Oakland Mac Mini',
     capabilities: ['research', 'attio', 'local-inference', 'coordination', 'meeting.brief', 'calendar', 'calendar.create', 'email.send'],
-    identities: ['alex-byteport', 'alex-gmail', 'alex-calendar'],
+    identities: ['alex-byteport', 'alex-gmail', 'alex-calendar', 'john-gradient'],
     models: ['ollama-local'],
     agents: ['hermes', 'codex', 'muse'],
     workers: [
       { id: 'hermes-oakland', kind: 'hermes', capabilities: ['research', 'attio', 'browser', 'linkedin.draft', 'meeting.brief', 'calendar', 'calendar.create', 'email.draft', 'email.send'], identities: ['alex-byteport', 'alex-gmail', 'alex-calendar'], models: ['ollama-local'] },
+      { id: 'hermes-oakland-john', kind: 'hermes', capabilities: ['linkedin.draft'], identities: ['john-gradient'], models: ['ollama-local'] },
       { id: 'muse', kind: 'muse', capabilities: ['research', 'campaign.define'], identities: [], models: ['claude-frontier'] },
       { id: 'codex', kind: 'codex', capabilities: ['coding'], identities: [], models: ['codex'] },
     ],
@@ -89,11 +90,12 @@ export const FLEET_MACHINE_SEEDS: MachineAdvertisement[] = [
     machineId: 'backup-mini',
     name: 'Backup Byteport Mac Mini',
     capabilities: ['research', 'attio', 'transcript.process'],
-    identities: ['jayram-byteport', 'will-byteport', 'laksh-byteport', 'maggie-byteport'],
+    identities: ['alex-byteport', 'katherine-byteport', 'jayram-byteport', 'will-byteport', 'laksh-byteport', 'maggie-byteport'],
     models: ['openrouter-free'],
-    agents: ['grokbot'],
+    agents: ['grokbot', 'hermes'],
     workers: [
       { id: 'grokbot-backup', kind: 'grokbot', capabilities: ['research', 'attio', 'transcript.process'], identities: ['jayram-byteport', 'will-byteport', 'laksh-byteport', 'maggie-byteport'], models: ['openrouter-free'] },
+      { id: 'hermes-backup', kind: 'hermes', capabilities: ['linkedin.draft', 'linkedin.send', 'browser'], identities: ['katherine-byteport'], models: ['openrouter-free'] },
     ],
   },
   {

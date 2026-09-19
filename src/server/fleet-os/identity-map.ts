@@ -22,7 +22,7 @@ const FLEET_IDENTITY_SEEDS: IdentityRecord[] = mergeIdentityRegistry([
   { id: 'alex-gmail', teammate: 'alex', principal: 'byteport', channel: 'gmail', machineId: 'oakland-mini', sessionHost: 'hermes-oakland', sessionStatus: 'alive', autonomyLevel: 2, sendMode: 'draft_only' },
   { id: 'alex-calendar', teammate: 'alex', principal: 'byteport', channel: 'calendar', machineId: 'oakland-mini', sessionHost: 'hermes-oakland', sessionStatus: 'alive', autonomyLevel: 2, sendMode: 'draft_only' },
   { id: 'katherine-byteport', teammate: 'katherine', principal: 'byteport', channel: 'linkedin', machineId: 'sf-mini', sessionHost: 'hermes', sessionStatus: 'alive', autonomyLevel: 2, sendMode: 'draft_only' },
-  { id: 'john-gradient', teammate: 'john', principal: 'gradient', channel: 'linkedin', machineId: null, sessionHost: 'luey', sessionStatus: 'unknown', autonomyLevel: 3, sendMode: 'live' },
+  { id: 'john-gradient', teammate: 'john', principal: 'gradient', channel: 'linkedin', machineId: 'oakland-mini', sessionHost: 'hermes-oakland-john', sessionStatus: 'unknown', autonomyLevel: 3, sendMode: 'live' },
 ])
 
 /** Map Attio people + fleet identities into a routing table. */
