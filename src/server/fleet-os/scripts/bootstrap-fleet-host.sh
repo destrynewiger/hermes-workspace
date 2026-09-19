@@ -154,6 +154,17 @@ PLIST
   fi
 fi
 
+echo "==> Starting Cursor self-hosted worker (cloud agents cannot land on this Mini without it)"
+if [[ "${FLEET_START_CURSOR_WORKER:-1}" == "1" ]]; then
+  if command -v cursor >/dev/null 2>&1; then
+    cursor worker start || echo "cursor worker start failed — run it manually"
+  else
+    echo "cursor CLI missing. After install: cursor worker start"
+  fi
+else
+  echo "FLEET_START_CURSOR_WORKER=0 — run: cursor worker start"
+fi
+
 echo
 echo "Bootstrapped $MACHINE_ID"
 echo "  env:     $ENV_FILE"
