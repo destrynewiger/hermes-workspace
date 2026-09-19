@@ -7,7 +7,7 @@ description: Shared GTM control plane protocol so Hermes, GrokBot, Muse, Codex, 
 
 Agents are interfaces and workers. The control plane owns state.
 
-Runtime: `packages/fleet-os` in this repo (canonical copy while hermes-workspace push is gated). HTTP when Workspace is deployed: `/api/fleet-os`. Full architecture: [`packages/fleet-os/ARCHITECTURE.md`](../../../packages/fleet-os/ARCHITECTURE.md).
+Runtime: `src/server/fleet-os` in this repo. HTTP: `/api/fleet-os`. Full architecture: [`docs/fleet-os/ARCHITECTURE.md`](../../../docs/fleet-os/ARCHITECTURE.md).
 
 ## Do this in order
 
