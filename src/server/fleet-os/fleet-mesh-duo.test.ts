@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -74,5 +74,14 @@ describe('oakland mesh + duo signals', () => {
       if (previous === undefined) delete process.env.AMPLEMARKET_API_KEY
       else process.env.AMPLEMARKET_API_KEY = previous
     }
+  })
+
+  it('does not stamp FLEET_TAILSCALE_MESH from tailscale status alone', () => {
+    const bootstrap = readFileSync(new URL('./scripts/bootstrap-fleet-host.sh', import.meta.url), 'utf8')
+    const wizard = readFileSync(new URL('./scripts/fleet-host-wizard.sh', import.meta.url), 'utf8')
+    expect(bootstrap).toContain('liveFromThisHost')
+    expect(bootstrap.includes('tailscale status >/dev/null 2>&1; then')).toBe(false)
+    expect(wizard).toContain('liveFromThisHost')
+    expect(wizard).toContain('write_env FLEET_TAILSCALE_MESH 0')
   })
 })

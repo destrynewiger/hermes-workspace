@@ -54,14 +54,22 @@ if [[ -n "${ATTIO_API_KEY:-}" ]]; then
   upsert_env ATTIO_API_KEY "$ATTIO_API_KEY"
 fi
 
-# Mark Tailscale mesh only when the host can actually see the mesh.
-if [[ "${FLEET_TAILSCALE_MESH:-}" == "1" ]]; then
+# Fail closed: `tailscale status` succeeding is not liveFromThisHost.
+PROBE_JSON="$HOME_DIR/mesh-probe.json"
+if [[ "${FLEET_TAILSCALE_MESH:-}" == "1" && "${FLEET_FORCE_MESH:-}" == "1" ]]; then
   upsert_env FLEET_TAILSCALE_MESH 1
-elif command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then
-  upsert_env FLEET_TAILSCALE_MESH 1
+elif [[ -f "$ROOT/fleet-mesh-probe.ts" ]]; then
+  npx --yes tsx "$ROOT/fleet-mesh-probe.ts" --once --json >"$PROBE_JSON" || true
+  LIVE="$(node -e 'try{const r=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); process.stdout.write(String(Boolean(r.liveFromThisHost)))}catch{process.stdout.write("false")}' "$PROBE_JSON")"
+  if [[ "$LIVE" == "true" ]]; then
+    upsert_env FLEET_TAILSCALE_MESH 1
+  else
+    upsert_env FLEET_TAILSCALE_MESH 0
+    echo "WARN: mesh probe is not liveFromThisHost. Advertise KeepAlive is installed anyway; FLEET_TAILSCALE_MESH stays 0 until required peers are reachable." >&2
+  fi
 else
   upsert_env FLEET_TAILSCALE_MESH 0
-  echo "WARN: tailscale not verified on this host — readiness will stay blocked." >&2
+  echo "WARN: fleet-mesh-probe.ts missing — readiness will stay blocked." >&2
 fi
 
 INTERVAL="${FLEET_ADVERTISE_INTERVAL:-30}"
@@ -149,7 +157,7 @@ fi
 echo
 echo "Bootstrapped $MACHINE_ID"
 echo "  env:     $ENV_FILE"
-  echo "  ledger:  $(grep '^FLEET_LEDGER_PATH=' "$ENV_FILE" | cut -d= -f2-)"
+echo "  ledger:  $(grep '^FLEET_LEDGER_PATH=' "$ENV_FILE" | cut -d= -f2-)"
 echo "  next:    set ATTIO_API_KEY in $ENV_FILE if HTTP Attio writes/reads are required"
-  echo "  check:   curl -sS -X POST \"\${FLEET_OS_URL:-http://127.0.0.1:8787}\" -H 'content-type: application/json' -d '{\"action\":\"readiness\"}'"
-  echo "  worker:  cd $ROOT && npx tsx fleet-worker.ts --worker <workerId> --advertise $MACHINE_ID"
+echo "  check:   curl -sS -X POST \"\${FLEET_OS_URL:-http://127.0.0.1:8787}\" -H 'content-type: application/json' -d '{\"action\":\"readiness\"}'"
+echo "  worker:  cd $ROOT && npx tsx fleet-worker.ts --worker <workerId> --advertise $MACHINE_ID"
