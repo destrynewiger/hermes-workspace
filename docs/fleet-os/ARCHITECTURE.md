@@ -30,9 +30,9 @@ Hardware (Tailscale mesh `tail1b1137.ts.net`; Oakland is the intended hub):
 
 | Machine | Role | Tailscale | Typical identities / models |
 |---|---|---|---|
-| Oakland Mac Mini (`oakland-mini`) | Coordination + local Ollama | `alex-mac-mini-1` (alias `alexs-mac-mini`) / `100.118.142.13` | Alex Byteport, Gmail, Calendar, Hermes, Codex |
+| Oakland Mac Mini (`oakland-mini`) | Coordination + local Ollama | `alex-mac-mini-1` (alias `alexs-mac-mini`) / `100.118.142.13` | Alex Byteport, Gmail, Calendar, John/Gradient, Hermes, Codex |
 | Alex SF Mac Mini (`sf-mini`) | Authenticated browser sessions | `alex-agent-mini` / `100.106.243.19` | Alex / Katherine LinkedIn |
-| Backup Byteport Mac Mini (`backup-mini`) | Failover research / GrokBot | confirm IP on bootstrap | No Katherine session |
+| Backup Byteport Mac Mini (`backup-mini`) | Failover research / GrokBot + Katherine LinkedIn | last-known `100.90.155.111` (probe only; not live until Oakland ping/netmap) | Katherine Byteport failover |
 | DestrysHP (`destrys-hp`) | Coding / overflow | confirm IP on bootstrap | Offline unless heartbeating |
 | Alex MacBook Pro | Personal (same tailnet) | `alexs-macbook-pro` / `100.73.203.75` | Not a required worker |
 | GrokBot VMs | Coworker LinkedIn attach | off-repo | Jayram, Will, Laksh, Maggie (needs_attach) |
